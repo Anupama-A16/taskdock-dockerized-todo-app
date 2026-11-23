@@ -1,80 +1,98 @@
-// Import required modules
-var express = require('express');
-var mysql = require('mysql');
-var app = express();
-var bodyParser = require('body-parser');
+const express = require('express');
+const mysql = require('mysql2');
+const bodyParser = require('body-parser');
 const cors = require('cors');
 
-// Enable CORS 
+const app = express();
+
+// Middleware
 app.use(cors());
+app.use(bodyParser.json());
 
-// Create a JSON parser 
-var jsonParser = bodyParser.json();
-
-// Create a connection specifying database connection details
+// MySQL database connection
 const conn = mysql.createConnection({
-    host: "localhost",
-    user: "your-sql-user",
-    password: "your-sql-password",
-    database: "todo"
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME || 'todo'
 });
 
-// Establish a connection to the MySQL server using the connection object
-conn.connect(function (err) {
+// Connect to MySQL
+conn.connect((err) => {
     if (err) {
-        throw err;
+        console.error('Database connection failed:', err);
+        process.exit(1);
     }
-    console.log("Connected!");
-}
-);
 
-// Endpoint to get details of all tasks
-app.get('/allTasks', function (req, res) {
-    conn.query("SELECT * from task;", function (err, result) {
+    console.log('Connected to MySQL database!');
+});
+
+// GET: Retrieve all tasks
+app.get('/allTasks', (req, res) => {
+    conn.query('SELECT * FROM task', (err, result) => {
         if (err) {
             console.error(err);
-            res.status(500).json('Internal Server Error');
-            return;
+            return res.status(500).json({
+                message: 'Failed to retrieve tasks'
+            });
         }
-        console.log(result);
-        res.send(result)
-    })
-})
 
-// Endpoint to delete a task with a specific ID
-app.delete('/task/:taskId', function (req, res) {
-    const taskId = req.params.taskId;
-    conn.query("DELETE FROM task WHERE TaskID=?;", taskId, function (err, result) {
-        if (err) {
-            console.error(err);
-            res.status(500).json('Internal Server Error');
-            return;
-        }
-        console.log("Task deleted!!");
-        res.send("Task deleted!!");
-    })
-})
-
-// Endpoint to add a new task
-app.post('/task', jsonParser, function (req, res) {
-    const { task_name } = req.body;
-    // Log the received task_name
-    console.log("Received task_name:", task_name);
-    conn.query("INSERT INTO task(Task) VALUES(?);", [task_name], function (err, result) {
-        if (err) {
-            console.error(err);
-            return
-        }
-        console.log("Added task succcesfully")
+        res.json(result);
     });
-    res.send("Added task succcesfully");
 });
 
+// DELETE: Delete a task
+app.delete('/task/:taskId', (req, res) => {
+    const taskId = req.params.taskId;
 
-// Start the server on port 5000
-app.listen(5000, () => {
-    console.log("Server has started");
+    conn.query(
+        'DELETE FROM task WHERE TaskID = ?',
+        [taskId],
+        (err, result) => {
+            if (err) {
+                console.error(err);
+                return res.status(500).json({
+                    message: 'Failed to delete task'
+                });
+            }
+
+            res.json({ message: 'Task deleted successfully' });
+        }
+    );
 });
 
+// POST: Add a new task
+app.post('/task', (req, res) => {
+    const { task_name } = req.body;
 
+    if (!task_name || !task_name.trim()) {
+        return res.status(400).json({
+            message: 'Task name is required'
+        });
+    }
 
+    conn.query(
+        'INSERT INTO task(Task) VALUES(?)',
+        [task_name.trim()],
+        (err, result) => {
+            if (err) {
+                console.error(err);
+                return res.status(500).json({
+                    message: 'Failed to add task'
+                });
+            }
+
+            res.status(201).json({
+                message: 'Task added successfully',
+                taskId: result.insertId
+            });
+        }
+    );
+});
+
+// Start backend server
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
