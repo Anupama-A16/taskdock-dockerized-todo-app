@@ -20,7 +20,7 @@ function App() {
         try {
             // Create request body with task_name
             const body = { task_name };
-            await fetch("http://localhost:5000/task", {
+            await fetch("/api/task", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(body)
@@ -37,7 +37,7 @@ function App() {
        const deleteTask = async (taskId) => {
         console.log(taskId);
         try {
-            const response = await fetch(`http://localhost:5000/task/${taskId}`, { method: "DELETE" });
+            const response = await fetch(`/api/task/${taskId}`, { method: "DELETE" });
             if (response.ok) {
                 // Remove the deleted task from the state
                 setTasks(tasks.filter(task => task.TaskID !== taskId));
@@ -54,7 +54,7 @@ function App() {
         // Fetch all tasks when the component mounts
         const fetchTasks = async () => {
             try {
-                const response = await fetch("http://localhost:5000/allTasks", {
+                const response = await fetch("/api/allTasks", {
                     method: "GET"
                 });
                 const data = await response.json();
